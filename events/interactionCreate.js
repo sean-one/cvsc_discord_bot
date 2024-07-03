@@ -1,7 +1,6 @@
 const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, ThreadAutoArchiveDuration } = require('discord.js');
+const { userOpenTickets, updateState } = require('../botState');
 
-// store open tickets count
-const userOpenTickets = new Map();
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -52,45 +51,48 @@ module.exports = {
 
                         // copy the messages from the orginal thread to teh archived thread
                         const threadMessages = await thread.messages.fetch({ limit: 100 });
+                        let ticketCreatorId;
                         for (const threadMessage of threadMessages.values()) {
-                            await archivedThread.send({
+                            const messageContent = {
                                 content: threadMessage.content,
                                 embeds: threadMessage.embeds,
                                 attachments: threadMessage.attachments.map(attachment => attachment.url),
-                            });
+                            }
+
+                            // check if at least one field has content
+                            if (messageContent.content || messageContent.embeds.length > 0 || messageContent.attachments.length > 0) {
+                                await archivedThread.send(messageContent)
+                            }
+
+                            // extract the ticket creator ID from the initial message
+                            const creatorMatch = threadMessage.content.match(/\*\*Ticket Creator:\*\* <@(\d+)>/)
+                            if (creatorMatch) {
+                                ticketCreatorId = creatorMatch[1];
+                            }
                         }
 
-                        // remove the user from the logged thread
-                        await archivedThread.members.remove(thread.ownerId)
+                        // remove the user who created the ticket from the logged thread
+                        if (ticketCreatorId) {
+                            await archivedThread.members.remove(ticketCreatorId);
+                        }
 
                         // archive the original thread
                         await thread.setArchived(true);
+                        await thread.delete();
 
-                        // fetch the message with the button
-                        const messageWithButton = await thread.messages.fetch({ limit: 1 });
-                        const buttonMessage = messageWithButton.first();
+                        await interaction.reply({ content: 'this ticket has been closed and logged', ephemeral: true });
+                        
+                        // update the open tickets count
+                        const openTicketsCount = userOpenTickets.get(ticketCreatorId) || 1;
+                        userOpenTickets.set(ticketCreatorId, openTicketsCount - 1);
 
-                        if (buttonMessage) {
-                            // create a new row with the disabled button
-                            const updatedButtonRow = new ActionRowBuilder()
-                                .addComponents(
-                                    new ButtonBuilder()
-                                        .setCustomId('close_ticket')
-                                        .setLabel('Close Ticket')
-                                        .setStyle(ButtonStyle.Danger)
-                                        .setDisabled(true) // disable the button
-                                );
-                            
-                            // edit the original message to disable the button
-                            await buttonMessage.edit({ components: [updatedButtonRow] });
+                        // ensure the count doesnt go negative
+                        if (userOpenTickets.get(ticketCreatorId) <= 0) {
+                            userOpenTickets.delete(ticketCreatorId);
                         }
 
-                        await interaction.reply({ content: 'this ticket has been closed', ephemeral: true });
-
-                        // update the open tickets count
-                        const userId = thread.ownerId;
-                        const openTicketsCount = userOpenTickets.get(userId) || 1;
-                        userOpenTickets.set(userId, openTicketsCount - 1);
+                        // save the updated bot state
+                        updateState();
                     }
                 } else {
                     await interaction.reply({ content: 'this command can only be used in ticket threads', ephemeral: true });

@@ -1,8 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ThreadAutoArchiveDuration } = require('discord.js');
-
-// store timestamps and open ticket count
-const userLastTicketTime = new Map();
-const userOpenTickets = new Map();
+const { userLastTicketTime, userOpenTickets, updateState } = require('../botState');
 
 // function to generate a timestamp string using Date.now()
 function generateTimestamp() {
@@ -39,9 +36,8 @@ module.exports = {
         // check the number of open tickets
         const maxOpenTickets = 5;
         const openTicketsCount = userOpenTickets.get(userId) || 0;
-        
         if (openTicketsCount >= maxOpenTickets) {
-            return interaction.reply({ content: `you alread have ${maxOpenTickets} open tickets. Please close an exisint completed ticekt before creating a new one`, ephemeral: true });
+            return interaction.reply({ content: `you already have ${maxOpenTickets} open tickets. Please close an existing completed ticket before creating a new one`, ephemeral: true });
         }
 
         // define the support channel id
@@ -61,6 +57,7 @@ module.exports = {
             autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
             reason: `support ticket for <@${userId}>`,
             type: ChannelType.PrivateThread,
+            invitable: false, // prevent non-moderators from adding others to the thread
         });
 
         // add the user to the thread
@@ -84,7 +81,7 @@ module.exports = {
         
         // send a message to the thread with the close button
         await ticketThread.send({
-            content: `ticket created by <@${user.id}>.\n\n**Description:** ${description}`,
+            content: `**Ticket Creator:** <@${user.id}>.\n\n**Description:** ${description}`,
             components: [row]
         });
 
@@ -94,5 +91,8 @@ module.exports = {
         // update the last ticket creation time and open tickets count
         userLastTicketTime.set(userId, now);
         userOpenTickets.set(userId, openTicketsCount + 1);
+
+        // save the updated bot state
+        updateState()
     },
 };
