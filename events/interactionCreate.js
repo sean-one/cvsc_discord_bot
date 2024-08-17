@@ -1,4 +1,4 @@
-const { Events, ChannelType, ThreadAutoArchiveDuration } = require('discord.js');
+const { Events, ChannelType, ThreadAutoArchiveDuration, ButtonStyle, ButtonBuilder, ActionRowBuilder, PermissionOverwrites } = require('discord.js');
 const { userOpenTickets, updateState } = require('../botState');
 
 module.exports = {
@@ -26,11 +26,11 @@ module.exports = {
             const thread = interaction.channel;
             if (thread.isThread()) {
                 try {
-                    console.log('Defer interaction reply');
+                    // Defer interaction reply
                     await interaction.deferReply({ ephemeral: true });
 
                     const guild = interaction.guild;
-                    const archiveChannelId = '1256121241819943018'; // Replace with your archive channel ID
+                    const archiveChannelId = '1256121241819943018';
                     const archiveChannel = await guild.channels.fetch(archiveChannelId);
 
                     if (!archiveChannel) {
@@ -85,8 +85,21 @@ module.exports = {
 
                     updateState();
 
+                    // create new action row with the delete button
+                    const deleteActionRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('delete_thread')
+                            .setLabel('Delete Thread')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
                     console.log('Sending notification in the original thread');
-                    await thread.send('This ticket has been marked as resolved and archived. You can delete this thread if you no longer need it.');
+                    await thread.send({
+                        content: 'This ticket has been marked as resolved and archived. You can delete this thread if you no longer need it.',
+                        components: [deleteActionRow],
+                    });
+
+                    await thread.setLocked(true);
 
                     console.log('Editing interaction reply');
                     await interaction.editReply({ content: 'This ticket has been closed and logged.' });
@@ -109,6 +122,23 @@ module.exports = {
                     await interaction.reply({ content: 'This command can only be used in ticket threads.', ephemeral: true });
                 } catch (replyError) {
                     console.error('Error replying to interaction: ', replyError);
+                }
+            }
+        } else if (interaction.isButton() && interaction.customId === 'delete_thread') {
+            const thread = interaction.channel;
+            if (thread.isThread()) {
+                try {
+                    await thread.delete();
+                    await interaction.reply({ content: 'the thread has been successfully deleted', ephemeral: true });
+                } catch (error) {
+                    console.error('error deleting the thread: ', error);
+                    await interaction.reply({ content: 'there was an error deleting the thread. please try again later.', ephemeral: true });
+                }
+            } else {
+                try {
+                    await interaction.reply({ content: 'this command can only be used in threads', ephemeral: true });
+                } catch (replyError) {
+                    console.error('error replying to interaction: ', replyError);
                 }
             }
         }
