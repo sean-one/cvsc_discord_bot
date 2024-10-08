@@ -26,7 +26,8 @@ module.exports = {
         const now = Date.now();
         const lastTicketTime = userLastTicketTime.get(userId) || 0;
         const timeSinceLastTicket = now - lastTicketTime;
-        const cooldownTime = 5 * 60 * 1000; // 5 minutes - minimum time between tickets created
+        const cooldownTime = 1000; // minimum time between tickets created
+        // const cooldownTime = 5 * 60 * 1000; // 5 minutes - minimum time between tickets created
 
         if (timeSinceLastTicket < cooldownTime) {
             const timeRemaining = Math.ceil((cooldownTime - timeSinceLastTicket) / 1000);
