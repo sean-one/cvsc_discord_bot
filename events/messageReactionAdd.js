@@ -86,7 +86,7 @@ async function handleSupportTicketReaction(reaction, user) {
         ],
     });
 
-    await ticketChannel.send(`Hello, <@${user.id}>!  Thank you for reaching out to support.\n\nPlease describe your issue or question in detail and a moderator will be in contact with you via this private chat channel.`);
+    await ticketChannel.send(`Hello, <@${user.id}>!  Thank you for reaching out to support.\n\nPlease describe your concern, idea or question in detail and a moderator will be in contact with you via this private chat channel.`);
     await user.send(`Your support ticket has been created: <#${ticketChannel.id}>.`);
 }
 

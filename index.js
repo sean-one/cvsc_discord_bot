@@ -49,8 +49,6 @@ for (const file of eventFiles) {
 }
 
 // Log in to the Discord client using the provided token from the configuration file.
-// index.js
-
 client.login(token).then(async () => {
     // Define IDs from configuration for easier access.
     const welcomeRoleReactionMessageId = ROLE_ACCESS_MESSAGE;
